@@ -1247,7 +1247,7 @@ addExpressMap(ASYTRIPType.VECTOR_PUSH, (v, c, inits) => {
 
 
 addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
-    const types = v.types.flatMap(v => getResolvedType(v, c));
+    const types = v.types.flatMap(v => getResolvedType(v, c));//.filter(t => t.type != ASYTRIPType.NULL);
 
     if (!isNaN(v.arg_pos ?? NaN))
         return deref_vector(`v${v.arg_pos}`, v, inits);
@@ -1263,6 +1263,9 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
             let val = getExpressionString(arg, c, inits);
 
+            if (val == "null")
+                continue;
+
             //let node = inits.push_closure(`if let HCO::NODE($$) = ${val}`);
 
             inits.push(`${ref}.push(${val});`, false);
@@ -1270,6 +1273,8 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
 
         return ref;
 
+    } else if (types.length == 0) {
+        return "vec![]";
     } else if (types.length == 1) {
 
         const [type] = types;
@@ -1299,7 +1304,7 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
             return ref;
         }
     } else {
-        //const ref = inits.push(`Vec::new()`, "Vec<HCO>");
+
         const ref = inits.push(`Vec::new()`, "Vec<HCO>");
 
         for (const arg of v.args) {
@@ -1307,6 +1312,11 @@ addExpressMap(ASYTRIPType.VECTOR, (v, c, inits) => {
             let val = getExpressionString(arg, c, inits);
 
             switch (arg.type) {
+                case ASYTRIPType.NULL:
+
+
+                    console.log(types);
+                    continue;
                 case ASYTRIPType.STRING:
                     val = `HCO::STRING(${val})`;
                     break;
