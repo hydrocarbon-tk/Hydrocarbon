@@ -231,7 +231,6 @@ export class StateIterator {
                 if (fail_mode) {
                     if (state & goto_state_mask) {
                         //const production = this.bytecode[(state & state_index_mask) - 1];
-                        //console.log({ production });
                     }
                 } else {
                     last_good_state = state;
@@ -266,6 +265,7 @@ export class StateIterator {
         const prev_token = this.tokens[0];
 
         if (prev_token.byte_offset + prev_token.byte_length != token.byte_offset) {
+
             this.emit({
                 type: ParseActionType.SKIP,
                 length: token.codepoint_offset - (prev_token.codepoint_length + prev_token.codepoint_offset),
@@ -450,14 +450,13 @@ export class StateIterator {
 
         while (true) {
 
+            const bytecode = this.bytecode;
+
+            //console.log(`instr: ${(bytecode[index] >>> 28) | 0} address: ${index} off: ${this.reader.cursor} bl: ${this.tokens[1].byte_length}`);
+
             const instruction = this.bytecode[index];
 
             index += 1;
-
-            if (!this.SCANNER)
-
-                console.log(this.reader.cursor, this.tokens.map(t => t.byte_offset));
-
 
             switch ((instruction >> 28) & 0xF) {
 
@@ -687,7 +686,7 @@ export class StateIterator {
     private get_input_value(
         input_type: number,
         token_transition: number,
-        token_row_switches: number,
+        scanner_start_pointer: number,
     ): number {
 
         if (input_type > 0) { // Lexer token id input
@@ -707,15 +706,13 @@ export class StateIterator {
 
                     this.tokens.push(new_token);
 
+                    new_token.type = 0;
+                    new_token.byte_offset = token.byte_offset + token.byte_length;
+
                     switch (input_type) {
 
                         case 1:
-
-                            new_token.type = 0;
-                            new_token.byte_offset = token.byte_offset + token.byte_length;
-                            new_token = this.scanner(new_token, token_row_switches);
-                            return new_token.type;
-
+                            return this.scanner(new_token, scanner_start_pointer).type;
                         case 2:
                             new_token.byte_length = this.reader.codepoint_byte_length();
                             new_token.codepoint_length = this.reader.codepoint_length();
@@ -734,6 +731,9 @@ export class StateIterator {
 
                 default: {/* set primary lexer */
 
+                    if (this.reader.END())
+                        return 1;
+
                     const token = this.tokens[1];
 
                     if (this.tokens.length > 2) {
@@ -750,16 +750,10 @@ export class StateIterator {
                         token.type = 0;
                     }
 
-                    if (this.reader.END())
-                        return 1;
-
                     switch (input_type) {
                         case 1:
-
-                            this.tokens[1] = this.scanner(token, token_row_switches);
-
+                            this.tokens[1] = this.scanner(token, scanner_start_pointer);
                             return this.tokens[1].type;
-
                         case 2:
                             token.byte_length = this.reader.codepoint_byte_length();
                             token.codepoint_length = this.reader.codepoint_length();
@@ -790,13 +784,13 @@ export class StateIterator {
 
         const lexer_type = ((instruction >> 26) & 0x3);
 
-        let token_row_switches = this.bytecode[index];
+        let scanner_start_pointer = this.bytecode[index];
 
         let table_data = this.bytecode[index + 1];
 
         index += 2;
 
-        const mod = (1 << ((table_data >>> 16) & 0xFFFF)) - 1;
+        const modulus = (1 << ((table_data >>> 16) & 0xFFFF)) - 1;
 
         const table_size = (table_data) & 0xFFFF;
 
@@ -810,10 +804,9 @@ export class StateIterator {
             this.get_input_value(
                 input_type,
                 lexer_type,
-                token_row_switches,
+                scanner_start_pointer,
             );
-        let hash_index = input_value & mod;
-
+        let hash_index = input_value & modulus;
 
         while (true) {
 
@@ -842,27 +835,27 @@ export class StateIterator {
     }
     private index_jump(index: number, instruction: number) {
 
-        let token_row_switches = this.bytecode[index];
+        let scanner_start_pointer = this.bytecode[index];
 
         let table_data = this.bytecode[index + 1];
-
-        index += 2;
 
         let basis__ = instruction & 0xFFFF;
 
         const input_type = ((instruction >> 22) & 0x7);
 
-        const token_transition = ((instruction >> 26) & 0x3);
+        const lexer_type = ((instruction >> 26) & 0x3);
 
         let input_value = this.get_input_value(
             input_type,
-            token_transition,
-            token_row_switches,
+            lexer_type,
+            scanner_start_pointer,
         ) - basis__;
 
         let number_of_rows = table_data >> 16;
 
         let row_size = table_data & 0xFFFF;
+
+        index += 2;
 
         if (input_value >= 0 && input_value < number_of_rows) {
 
@@ -939,7 +932,7 @@ export class StateIterator {
 
     private scanner(
         current_token: KernelToken,
-        token_row_state: number
+        scanner_start_pointer: number
     ): KernelToken {
 
         if (current_token.type <= 0) {
@@ -949,7 +942,7 @@ export class StateIterator {
             const scanner_iterator = new StateIterator(
                 clone,
                 this.bytecode,
-                token_row_state,
+                scanner_start_pointer,
                 true
             );
 
@@ -971,7 +964,7 @@ export class StateIterator {
 
                                 //Need to reset the state iterator 
 
-                                scanner_iterator.stack.reset(token_row_state);
+                                scanner_iterator.stack.reset(scanner_start_pointer);
 
                                 scanner_iterator.tokens[0].impersonate(scanner_iterator.tokens[1]);
 
