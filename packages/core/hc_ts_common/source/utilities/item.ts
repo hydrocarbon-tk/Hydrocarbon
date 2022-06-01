@@ -3,9 +3,11 @@
  * see /source/typescript/hydrocarbon.ts for full copyright and warranty 
  * disclaimer notice.
  */
+import { time } from 'console';
 import { default_DEFAULT } from "../index.js";
 import { convert_symbol_to_string, getRootSym, Sym_Is_A_Production } from "../objects/symbol.js";
 import { GrammarObject, GrammarProduction, HCG3ProductionBody, HCG3Symbol } from "../types/grammar.js";
+import { getClosure } from './closure.js';
 
 const item_off_sym = ".";
 
@@ -14,6 +16,19 @@ export const enum ItemIndex {
     length = 1,
     offset = 2,
     state = 3
+}
+
+const closure_cache = new Map();
+
+function getItemClosure(item: Item, grammar: GrammarObject) {
+    const closure = [...getClosure([item], grammar), ...item.getScope()].setFilter(i => i.id);//.filter(i => i.id != item.id);
+    const id = closure.map(i => i.id).sort().join("");
+
+    if (!closure_cache.has(id)) {
+        closure_cache.set(id, closure);
+    }
+
+    return closure_cache.get(id);
 }
 
 /**
@@ -25,6 +40,8 @@ export const enum ItemIndex {
  * body. 
  */
 export class Item extends Array {
+
+    scope?: Item[];
 
     static fromString(str: string): Item {
         const array = str.replace("|-", "").split(":").map(i => parseInt(i));
@@ -42,6 +59,33 @@ export class Item extends Array {
     constructor(body_id: number, length: number, offset: number, state: number = 0) {
         //@ts-ignore
         super(body_id, length, offset, state);
+    }
+
+    /**
+     * Creates the closure for this item. 
+     * @param grammar 
+     */
+    initScope(grammar: GrammarObject): Item {
+        this.scope = [];
+        this.scope = getItemClosure(this, grammar);
+        return this;
+    }
+    /**
+     * Appends new items to this items closure
+     * @param grammar 
+     */
+    updateScope(grammar: GrammarObject): Item {
+        this.scope = getItemClosure(this, grammar);
+        return this;
+    }
+
+    getScope(): Item[] {
+        return this.scope ?? [];
+    }
+
+    setScope(closure: Item[]): Item {
+        this.scope = closure;
+        return this;
     }
 
     get atEND(): boolean {
@@ -74,7 +118,9 @@ export class Item extends Array {
         offset = this.offset,
         state = this.state
     ): Item {
-        return new Item(body, length, offset, state);
+        const item = new Item(body, length, offset, state);
+        item.setScope(this.getScope());
+        return item;
     }
 
     body_(grammar: GrammarObject): HCG3ProductionBody | void {
@@ -157,6 +203,8 @@ export class Item extends Array {
 
             const item = new Item(this.body, this.len, this.offset + 1, this.state);
 
+            item.setScope(this.getScope());
+
             return item;
         }
         return null;
@@ -166,6 +214,8 @@ export class Item extends Array {
         const item = new Item(this.body, this.len, this.offset, this.state);
 
         item[ItemIndex.offset] = Math.max(0, item[ItemIndex.offset] - 1);
+
+        item.setScope(this.getScope());
 
         return item;
     }

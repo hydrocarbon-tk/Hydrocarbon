@@ -34,6 +34,9 @@ import {
 } from '@hctoolkit/common';
 import { TransitionGraphOptions as TGO } from '../types/transition_graph_options.js';
 import { TransitionStateType as TST } from '../types/transition_tree_nodes.js';
+import { Logger } from "@candlelib/log";
+
+const l = Logger.get("test");
 
 //Module scoped variable for convenience
 var GRAMMAR: GrammarObject;
@@ -51,6 +54,9 @@ export function constructDescent(
     GRAMMAR = grammar;
 
     const production_items = getStartItemsFromProduction(production);
+
+    for (const item of production_items)
+        item.initScope(GRAMMAR);
 
     options.goto_items = [];
 
@@ -98,7 +104,13 @@ export function constructGoto(
 
     return goto_state;
 }
-
+/**
+ * Acquires all goto items 
+ * @param production 
+ * @param seed_items 
+ * @param grammar 
+ * @returns 
+ */
 export function getGotoSTARTs(
     production: GrammarProduction,
     seed_items: Item[],
@@ -129,11 +141,71 @@ export function getGotoSTARTs(
     return output;
 }
 
-function processGoto(options: TGO, goto_items: Item[], parent: Node | null = null): Node {
+function getFollowClosure(options: TGO, goto_items: Item[]) {
+    // FOLLOW
+    let seen = new Set();
+    let seen_productions = new Set();
+    let productions_to_process = [options.root_production.id];
+    let closure = [];
+    const root_production = options.root_production.id;
+
+    for (const prod of productions_to_process) {
+
+        if (seen_productions.has(prod))
+            continue;
+
+        seen_productions.add(prod);
+
+        const items = GRAMMAR.lr_items?.get(prod)?.map(inc) ?? [];
+
+        let n_term = items.filter(term_item).map(i => i.decrement());
+        let n_nonterm = items.filter(nonterm_item);
+        let n_end = items.filter(end_item);
+
+        closure.push(...n_term, ...n_nonterm.flatMap(i => [i.decrement(), ...getClosure([i], GRAMMAR).filter(a => a.id != i.id)]));
+
+        /* 
+        if (options.root_production.name == "element_block_group_2_0__list_92") {
+            console.debug({
+                n_term: itemsDebug(n_term),
+                n_nonterm: itemsDebug(n_nonterm),
+                n_end: itemsDebug(n_end),
+                c: itemsDebug(closure)
+            });
+        }
+        //*/
+
+        for (const end_item of n_end) {
+            if (!seen.has(end_item.id)) {
+                productions_to_process.push(end_item.getProductionID(GRAMMAR));
+                closure.push(end_item.decrement());
+            }
+        }
+    }
 
     const goto_item_map = getGotoSTARTs(options.root_production, goto_items, GRAMMAR);
 
+    closure.push(...[...goto_item_map.values()].flat());
+
+    closure = closure.setFilter(item_id);
+
+    return closure;
+}
+
+function processGoto(options: TGO, goto_items: Item[], parent: Node | null = null): Node {
+
+    // Construct the global closure, consisting of all items that are direct or
+    // indirect ancestors of the root node. 
+
+    const closure = getFollowClosure(
+        options,
+        goto_items
+    );
+
+
     parent = createNode(options, default_DEFAULT, goto_items);
+
+    const goto_item_map = getGotoSTARTs(options.root_production, goto_items, GRAMMAR);
 
     const nodes: Node[] = [];
 
@@ -146,7 +218,7 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
 
         //This will default to a peek
         const
-            items = <Item[]>group.map(inc),
+            items = <Item[]>group.map(inc).map(i => i.updateScope(GRAMMAR)),
             prod = GRAMMAR.productions[id],
             node = createNode(options, {
                 type: SymbolType.PRODUCTION,
@@ -161,15 +233,16 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
         node.addType(TST.O_GOTO);
 
         if (
-            group.length > 1
-            &&
-            (// Have some completed items
-                group.some(i => i.increment()?.atEND ?? false)
-                ||
-                // Is root production 
-                id == options.root_production.id
-            )
+            ((group.length > 1)
+                &&
+                (// Have some completed items
+                    group.some(i => i.increment()?.atEND ?? false)
+
+                )) ||
+            // Is root production 
+            id == options.root_production.id
         ) {
+            //* 
             if (id == options.root_production.id) {
                 // Need to include out of scope states that will be used
                 // to overcome shift reduce ambiguities that may occur
@@ -185,25 +258,58 @@ function processGoto(options: TGO, goto_items: Item[], parent: Node | null = nul
                         .map(s => s.toState(OutOfScopeItemState))
                         ?? [];
 
-                node.items = node.items.concat(reducible);
+
+
+                d = node;
+                node.items = node.items.concat(reducible).map(i => i.initScope(GRAMMAR));
+            } //*/
+
+            // Add closures to items
+            for (const item of node.items) {
+                if (item.atEND || item.state == OutOfScopeItemState) {
+
+                    const active_productions = new Set(
+                        node.items.map(i => i.decrement().getProductionAtSymbol(GRAMMAR).id).setFilter()
+                    );
+
+                    let _closure = closure.filter(
+                        i => {
+                            return (!active_productions.has(i.getProductionAtSymbol(GRAMMAR)?.id ?? -1)
+                                && i.getProductionID(GRAMMAR) != id);
+                        }
+                    );
+
+                    item.setScope(_closure);
+                    /* 
+                    if (options.root_production.name == "element_block_group_2_0__list_92" && id == options.root_production.id)
+                        console.debug({
+                            i: item.rup(GRAMMAR),
+                            c: itemsDebug(item.getClosure()),
+                            cc: itemsDebug(closure)
+                        });
+                    //*/;
+
+
+                } else {
+                    item.initScope(GRAMMAR);
+                }
             }
 
             createPeek(options, node, node.items, nodes);
-
-            if (id == 20)
-                d = node;
         } else
             processNode(options, node, nodes, false);
     }
 
     let v = null;
 
-
     while ((v = nodes.shift()))
         processNode(options, v, nodes);
 
-    if (options.root_production.name == "general_data_list_77")
-        console.log(d?.debug);
+    /* 
+    if (options.root_production.name == "element_block_group_2_0__list_92")
+        console.debug(d?.debug);
+    //*/
+
     return parent;
 }
 
@@ -221,12 +327,12 @@ function processNode(
 
     let items = node.items.slice();
 
+
     if (INCREMENT)
         items = <Item[]>items.map(
             i => i.atEND
                 ? i
-
-                : i.increment());
+                : i.increment()?.updateScope(GRAMMAR));
 
     let n_term = items.filter(term_item);
 
@@ -257,6 +363,8 @@ function processNode(
         ) {
             createProductionCall(opt, productions[0], n_nonterm, node, tpn);
         } else {
+
+
             // Break down non-terminal items to get terminal items
 
             // If we can call different productions depending
@@ -283,18 +391,22 @@ function processNode(
                     // Each production group consume a non-intersecting set of terminal
                     // symbols at this point so we can branch to separate production 
                     // calls based on these terminal symbols.
-
                     RESOLVED = true;
 
                     if (p_groups.length == 1 && n_term.length == 0) {
                         const prod = get_sym(p_groups[0].group[0]);
+
                         createProductionCall(opt, <ProductionSymbol>prod, p_groups[0].group, node, tpn);
                     } else {
 
 
                         for (const group of p_groups) {
                             const prod = get_sym(group.group[0]);
+
                             for (const term of group.terms.map(get_sym).setFilter(gusn)) {
+
+
+
                                 createTermedProductionCall(
                                     opt,
                                     <TokenSymbol>term,
@@ -316,7 +428,7 @@ function processNode(
 
                     opt.goto_items.push(...new_nonterm);
 
-                    node.items = new_term;
+                    node.items = new_term;)
 
                     node.closure = [...new_nonterm].setFilter(item_id);
 
@@ -329,7 +441,6 @@ function processNode(
                 }
 
             if (!RESOLVED) {
-
 
                 // Some production groups consume symbols shared with other
                 // production groups or terminal items.
@@ -354,7 +465,6 @@ function processNode(
                 n_end[0]
             );
         } else {
-
             // We'll need to disambiguate all items.
             createPeek(opt, node, items, tpn);
             return;
@@ -425,7 +535,7 @@ function processEndItem(
         )
     ) {
 
-        const new_items = node.scanItems(true);
+        const new_items = scanItems(node.items, true);
 
         node.closure = [...new_items, end_item].setFilter(item_id);
 
@@ -460,10 +570,13 @@ function createPeek(
 
     let
         end_item = 0,
-        closure: Item[] =
-            [...(GRAMMAR.lr_items?.values() ?? [])].flat().setFilter(item_id);
+        closure: Item[] = [];
 
     parent.items = [];
+
+    let depth = parent.depth;
+
+    parent.depth = 9999;
 
     //separate node into a set of groups
     const roots = parent_items.setFilter(item_id).group(s => {
@@ -478,37 +591,18 @@ function createPeek(
         let
             state = 10000 * (j + 1),
             items = g.map(i => i.toState(state)).setFilter(item_id),
-            _closure = closure,
             n = createNode(opt, item_sym(g[0]), items, null);
 
-        if (opt.scope == "GOTO") {
-            if (items[0].atEND) {
+        if (opt.scope == "GOTO")
+            if (items[0].atEND)
                 n.addType(TST.I_COMPLETE);
 
-                const active_productions = new Set(
-                    parent_items.map(i => i.decrement().getProductionAtSymbol(GRAMMAR).id).setFilter()
-                );
-
-                _closure = closure.filter(
-                    i => {
-                        return !active_productions.has(i.getProductionAtSymbol(GRAMMAR).id);
-                    }
-                );
-            }
-        }
-
-        n.closure = getClosure(items, GRAMMAR, state);
         n.depth = state;
         n.root = n;
 
         if (g[0].state == OutOfScopeItemState)
             n.addType(TST.I_OUT_OF_SCOPE);
 
-        parent.closure.push(..._closure.map(i => i.toState(state)));
-
-
-
-        parent.makeClosureUnique(true);
         parent.items.push(...items);
 
         return n;
@@ -526,32 +620,28 @@ function createPeek(
                 nodes = r.items.flatMap(createNodeClosure(opt, parent, r)),
                 groups = nodes.group(n => getUniqueSymbolName(n.sym));
 
+
             for (const group of groups) {
 
                 const primary = group[0];
 
-                for (const node of group.slice(1)) {
-
-                    node.makeClosureUnique(true);
-
+                for (const node of group.slice(1))
                     primary.items.push(...node.items);
-
-                    primary.closure = primary.closure.concat(node.closure);
-
-                    primary.makeClosureUnique(true);
-                }
 
 
                 out.push(primary);
             }
 
-            for (const node of out) node.depth = r.depth;
+            for (const node of nodes) node.depth = r.depth;
 
             if (opt.IS_SCANNER)
                 out.forEach(n => { if (!Sym_Is_DEFAULT(n.sym)) { n.addType(TST.I_CONSUME); } });
 
             return nodes;
         }), roots, tpn, leaves, [], parent);
+
+
+    parent.depth = depth;
 
     parent.items = parent.items.setFilter(item_id);
 
@@ -616,23 +706,17 @@ function disambiguate(
                 ];
                 discard = new Set(ias.map(i => i.id));
 
-                //if (opt.root_production.name == "general_data_list_77")
-                //    console.log(itemsDebug(ias), ias.map(i => i.id), discard);
-
-                items = node.scanItems();
+                items = scanItems(node.items, true);
             } else
-                items = node.scanItems();
+                items = scanItems(node.items, true);
 
             if (items.length > 0) {
 
                 const parent = <Node>node.parent;
 
-                if ((opt.scope == "GOTO") || opt.IS_SCANNER) {
-                    const nodes = items.flatMap(createNodeClosure(opt, parent, <Node>node.root, discard));
-                    term_nodes.push(...nodes);
-                    if (opt.root_production.name == "general_data_list_77")
-                        console.log("ssss", itemsDebug(nodes.flatMap(n => n.items)));
-                }
+                const nodes = items.flatMap(createNodeClosure(opt, parent, <Node>node.root, discard));
+
+                term_nodes.push(...nodes);
 
                 if (end_nodes.length > 1) {
                     node.pruneLeaf();
@@ -674,7 +758,7 @@ function disambiguate(
             setTransitionType(final_node);
 
             gatherLeaves(final_node, root, leaves);
-
+            1;
         }
     }
 
@@ -700,9 +784,12 @@ function disambiguate(
         //combine the nodes into a single item
         const prime_node = group[0];
 
+
         setTransitionType(prime_node);
 
         const new_groups = [];
+
+        prime_node.addType(TST.I_TEST);
 
         const node_root_id = group.map(s => s.root?.depth + "").setFilter();
 
@@ -729,7 +816,6 @@ function disambiguate(
                         .map(inc).flatMap(createNodeClosure(opt, prime_node, <Node>node.root)));
             }
 
-
             if (new_groups.length == 0) {
                 if (group.every(i => i.root?.is((TST.I_OUT_OF_SCOPE)))) {
                     gatherLeaves(prime_node, root, leaves);
@@ -741,7 +827,6 @@ function disambiguate(
                     );
                 }
             } else {
-                prime_node.addType(TST.I_TEST);
                 next_steps.push(new_groups);
             }
 
@@ -1279,13 +1364,15 @@ function createNodeClosure(
 
                 } else if (!discard.has(item.id)) {
 
+                    if (opt.scope == "GOTO")
+                        item.setScope(i.getScope());
+
                     seen.add(item.id);
                     nodes.push(createNode(opt, item.sym(GRAMMAR), [item], parent_node, closure, root.root));
                 }
 
             }
-        }
-        else if (!discard.has(i.id)) {
+        } else if (!discard.has(i.id)) {
             nodes.push(createNode(opt, i.sym(GRAMMAR), [i], parent_node, [], root.root));
         }
 
@@ -1327,6 +1414,44 @@ function createProdGroup(p: Item[]): ProductionGroup {
     return new ProductionGroup(p);
 }
 
+
+function scanItems(items: Item[], IGNORE_STATE: boolean = false, seen: Set<any> = new Set): Item[] {
+
+    let out = [];
+
+    for (const item of items) {
+
+        if (seen.has(item.id))
+            continue;
+
+        seen.add(item.id);
+
+        const production = item.getProductionID(GRAMMAR);
+
+        const production_items = <Item[]>item.getScope()
+
+            .filter(nonterm_item)
+            .filter(i => production == i.getProductionAtSymbol(GRAMMAR).id)
+
+            .map(inc);
+
+        if (production_items.length > 0) {
+            for (const i of production_items) {
+
+                i.setScope(item.getScope()).updateScope(GRAMMAR);
+
+                if (i.atEND) {
+                    items.push(i);
+                } else {
+                    out.push(i);
+                }
+            }
+        }
+    }
+
+    return out.setFilter(item_id);
+}
+
 class ProductionGroup {
     group: Item[];
     closure: Item[];
@@ -1335,7 +1460,17 @@ class ProductionGroup {
     nonterms: Item[];
 
     constructor(p: Item[]) {
-        const c = getClosure(p, GRAMMAR);
+
+        //const c =  getClosure(p, GRAMMAR);
+        const c: Item[] = [];
+
+        for (const item of p) {
+            for (const c_item of getClosure([item], GRAMMAR)) {
+                c_item.setScope(item.getScope());
+                c.push(c_item);
+            }
+        }
+
         this.group = p;
         this.closure = c;
         this.terms = c.filter(term_item);
@@ -1385,7 +1520,7 @@ function iToSymID(i: Item): string {
 }
 
 function inc(i: Item): Item {
-    return <Item>i.increment();
+    return <Item>i.increment()?.updateScope(GRAMMAR);
 }
 
 function nonRecursive(
@@ -1601,67 +1736,6 @@ ${this.children.flatMap(c => c.debug.split("\n")).join("\n  ")}
 
     get end_items() {
         return this.items.filter(i => i.atEND);
-    }
-
-    scanItems(IGNORE_STATE: boolean = false, seen: Set<any> = new Set): Item[] {
-
-        let items = this.end_items.slice();
-
-        let out = [];
-
-        let i = 0;
-
-        for (const item of items) {
-
-            if (seen.has(item.id))
-                continue;
-
-            seen.add(item.id);
-
-            const state = item.state;
-
-            const production = item.getProductionID(GRAMMAR);
-
-            let node: Node | null = this;
-
-            let INCREMENTED = false;
-
-            while (node) {
-
-
-                if (node.hasState(state)) {
-
-                    const production_items = <Item[]>node.closure
-
-                        .filter(nonterm_item)
-                        .filter(i => (IGNORE_STATE || i.state == state) && production == i.getProductionAtSymbol(GRAMMAR).id)
-
-                        .map(inc);
-
-                    if (production_items.length > 0) {
-                        INCREMENTED = true;
-                        for (const item of production_items) {
-                            if (item.atEND) {
-                                items.push(item);
-                            } else {
-                                out.push(item);
-                            }
-                        }
-
-                        if (!IGNORE_STATE)
-                            break;
-                    }
-                }
-
-                node = node.parent;
-            }
-
-            if (IGNORE_STATE && !INCREMENTED) {
-                out.push(item);
-            }
-        }
-
-        return out.setFilter(item_id);
     }
 
     sym: HCG3Symbol;
