@@ -78,11 +78,6 @@ export function constructProductionStates(
                 root: null
             };
 
-        // If forks separate out the conflicting items into 
-        // parse paths and use fork mechanism to run concurrent
-        // parses of the input and then join at the end of the
-        // production
-
         {
             const descent_graph = constructDescent(
                 grammar,
