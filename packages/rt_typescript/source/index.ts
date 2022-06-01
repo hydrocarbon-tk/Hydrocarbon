@@ -20,11 +20,12 @@ export {
     scanner_state_mask,
     state_index_mask,
 } from '@hctoolkit/common';
-export { StateIterator } from "./recognizer/iterator.js";
+export * from "./recognizer/iterator.js";
 export * from "./completer/complete.js";
 export * from "./ast/ast_node.js";
 export * from "./ast/serialization.js";
 export * from "./buffer/serial_reader.js";
+export * from "./buffer/string_byte_reader.js";
 
 
 

@@ -40,7 +40,9 @@ export class KernelStack {
     }
 
     pop_state(): number {
-        return this.state_stack[this.pointer--];
+        let state = this.read_state();
+        this.pointer--;
+        return state;
     }
 
     read_state(): number {
@@ -52,5 +54,27 @@ export class KernelStack {
             dest.state_stack[i] = this.state_stack[i];
 
         dest.pointer = this.pointer;
+    }
+
+    clone(): KernelStack {
+        const new_stack = new KernelStack;
+
+        this.copy_state_stack(new_stack);
+
+        return new_stack;
+    }
+
+    debug_clone(): KernelStack {
+        const new_stack = new KernelStack;
+
+        new_stack.state_stack = new Uint32Array(this.pointer + 1);
+        new_stack.meta_stack = new Uint32Array(this.pointer + 1);
+
+        for (let i = 0; i <= this.pointer; i++)
+            new_stack.state_stack[i] = this.state_stack[i];
+
+        new_stack.pointer = this.pointer;
+
+        return new_stack;
     }
 }

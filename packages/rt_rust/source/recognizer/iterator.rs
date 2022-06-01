@@ -388,7 +388,6 @@ impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
     }
 
     fn consume(&mut self, index: usize, _: u32, bytecode: &[u32]) -> usize {
-        
         let mut token = self.get_tok(1);
 
         let instruction = bytecode[index];
@@ -485,7 +484,7 @@ impl<'a, T: ByteReader> ParserCoreIterator<T> for StateIterator<'a, T> {
         } else {
             // Production id input
             self.get_prod() as i32
-        }P
+        }
     }
 }
 pub struct ScannerIterator<T: ByteReader> {
@@ -978,23 +977,21 @@ trait ParserCoreIterator<R: ByteReader> {
     }
 
     fn set_token(&mut self, index: usize, _: u32, bytecode: &[u32]) -> usize {
-        
         let instruction = bytecode[index];
         let val = instruction & 0xFFFFFF;
 
-        
         if (instruction & 0x1000000) != 0 {
             const DEFAULT_PASS_INSTRUCTION: usize = 1;
             self.consume(DEFAULT_PASS_INSTRUCTION, 0, bytecode);
         }
-        
+
         if (instruction & 0x08000000) != 0 {
             // Sets output token
-            let mut token =  self.get_tok(0);
-            let mut lead_token =  self.get_tok(1);
+            let mut token = self.get_tok(0);
+            let mut lead_token = self.get_tok(1);
             self.set_prod(val);
             token.byte_length = lead_token.byte_offset + token.byte_offset;
-            token.cp_length= lead_token.cp_length + token.cp_length;
+            token.cp_length = lead_token.cp_length + token.cp_length;
             token.typ = val as u16;
             self.set_tok(0, token);
         } else {

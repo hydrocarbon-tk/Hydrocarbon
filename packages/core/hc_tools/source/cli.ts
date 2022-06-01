@@ -161,7 +161,7 @@ addCLIConfig<URI | "stdin">("disassemble", {
                 return [v.pointer & 0xFFFFFF, v];
             }));
 
-        const sheet = renderByteCodeSheet(binary, states_lookup, grammar);
+        const sheet = await renderByteCodeSheet(binary, states_lookup, grammar);
 
         if (USE_STDOUT) {
             stdout.write(sheet);
